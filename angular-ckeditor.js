@@ -6,8 +6,8 @@
 }(this, function (angular) {
 
   angular
-  .module('ckeditor', [])
-  .directive('ckeditor', ['$parse', ckeditorDirective]);
+    .module('ckeditor', [])
+    .directive('ckeditor', ['$parse', ckeditorDirective]);
 
   // Polyfill setImmediate function.
   var setImmediate = window && window.setImmediate ? window.setImmediate : function (fn) {
@@ -37,19 +37,24 @@
         // get needed controllers
         var controller = ctrls[0]; // our own, see below
         var ngModelController = ctrls[1];
+        var initialViewValue = undefined;
 
         // Initialize the editor content when it is ready.
         controller.ready().then(function initialize() {
           // Sync view on specific events.
           ['dataReady', 'change', 'blur', 'saveSnapshot'].forEach(function (event) {
             controller.onCKEvent(event, function syncView() {
-              ngModelController.$setViewValue(controller.instance.getData() || '');
+              var data = controller.instance.getData();
+              if (data === '') {
+                data = initialViewValue;
+              }
+              ngModelController.$setViewValue(data);
             });
           });
 
-          controller.instance.setReadOnly(!! attrs.readonly);
+          controller.instance.setReadOnly(!!attrs.readonly);
           attrs.$observe('readonly', function (readonly) {
-            controller.instance.setReadOnly(!! readonly);
+            controller.instance.setReadOnly(!!readonly);
           });
 
           // Defer the ready handler calling to ensure that the editor is
@@ -62,7 +67,10 @@
         // Set editor data when view data change.
         ngModelController.$render = function syncEditor() {
           controller.ready().then(function () {
-            controller.instance.setData(ngModelController.$viewValue || '');
+            if (!initialViewValue) {
+              initialViewValue = ngModelController.$viewValue;
+            }
+            controller.instance.setData(ngModelController.$viewValue || initialViewValue);
           });
         };
       }
@@ -81,7 +89,7 @@
 
     // Create editor instance.
     if (editorElement.hasAttribute('contenteditable') &&
-        editorElement.getAttribute('contenteditable').toLowerCase() == 'true') {
+      editorElement.getAttribute('contenteditable').toLowerCase() == 'true') {
       instance = this.instance = CKEDITOR.inline(editorElement, config);
     }
     else {
@@ -120,7 +128,7 @@
       };
     };
 
-    this.onCKEvent('instanceReady', function() {
+    this.onCKEvent('instanceReady', function () {
       readyDeferred.resolve(true);
     });
 
@@ -136,7 +144,7 @@
     // Destroy editor when the scope is destroyed.
     $scope.$on('$destroy', function onDestroy() {
       // do not delete too fast or pending events will throw errors
-      readyDeferred.promise.then(function() {
+      readyDeferred.promise.then(function () {
         instance.destroy(false);
       });
     });
